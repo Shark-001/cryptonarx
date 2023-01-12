@@ -1,0 +1,39 @@
+import asyncio
+from aiogram import Bot, executor, Dispatcher
+from aiogram.types import Message
+from binance import AsyncClient
+from binance.exceptions import BinanceAPIException
+
+bot = Bot('5941545086:AAFFFwhKPZMPnxfHaHKk4xFGV84y4PL02_0')
+dispatcher = Dispatcher(bot)
+binance_client = AsyncClient()
+
+
+async def get_coin_price(coin: str):
+    try:
+        ticker_data = await binance_client.get_ticker(symbol=coin)
+        return ticker_data['lastPrice']
+    except BinanceAPIException:
+        raise ValueError("Not Found")
+
+
+async def update_coin_price(message: Message, coin: str):
+    while True:
+        new_price = await get_coin_price(coin)
+        await message.edit_text(text=new_price)
+        await asyncio.sleep(5)
+
+
+
+@dispatcher.message_handler()
+async def handle_coin_price(message: Message):
+    try:
+        new_price = await get_coin_price(coin=message.text)
+        reply_message = await message.reply(text=new_price)
+        await update_coin_price(message=reply_message, coin=message.text)
+    except ValueError:
+        await message.reply(text="Not Found")
+
+
+if __name__ == '__main__':
+    executor.start_polling(dispatcher)
